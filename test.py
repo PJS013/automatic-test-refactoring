@@ -10,8 +10,8 @@ class LoginPage:
         self.page.locator("[data-test=\"password\"]").fill(password)
         self.page.locator("[data-test=\"login-button\"]").click()
 
-    def expect_text(self, text):
-        expect(self.page.locator("[data-test=\"error\"]")).to_contain_text(
+    def expect_text(self, locator, text):
+        expect(self.page.locator(locator)).to_contain_text(
             text)
 
 
@@ -27,7 +27,7 @@ def run(playwright: Playwright) -> None:
     page.locator("[data-test=\"login-button\"]").click()
     expect(page.locator("[data-test=\"item-4-title-link\"]")).to_be_visible()
     expect(page.locator("[data-test=\"item-0-title-link\"] [data-test=\"inventory-item-name\"]")).to_contain_text("Sauce Labs Bike Light")
-    expect(page.locator("[data-test=\"product-sort-container\"]")).to_have_value("az");
+    expect(page.locator("[data-test=\"product-sort-container\"]")).to_have_value("az")
     page.get_by_text("$29.99").click()
     page.get_by_text("Name (A to Z)Name (A to Z)").click()
     page.locator("[data-test=\"product-sort-container\"]").select_option("lohi")
