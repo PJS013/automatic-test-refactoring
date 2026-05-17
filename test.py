@@ -5,15 +5,30 @@ class LoginPage:
     def __init__(self, page):
         self.page = page
 
-    def login(self, login, password):
-        self.page.locator("[data-test=\"username\"]").fill(login)
+    def login(self, locator, login, password):
+        self.page.locator(locator).fill(login)
         self.page.locator("[data-test=\"password\"]").fill(password)
         self.page.locator("[data-test=\"login-button\"]").click()
 
-    def expect_text(self, locator, text):
-        expect(self.page.locator(locator)).to_contain_text(
-            text)
+    def select(self, option_selector, option_value, modifier_value):
+        self.page.locator(option_selector).select_option(option_value)
+        self.page.locator('div').filter(has_text='Swag Labs').nth(modifier_value).click()
 
+class ExpectMethods:
+    def __init__(self, page):
+        self.page = page
+
+    def login(self, locator, login, password):
+        self.page.locator(locator).fill(login)
+        self.page.locator("[data-test=\"password\"]").fill(password)
+        self.page.locator("[data-test=\"login-button\"]").click()
+        expect(self.page.locator("[data-test=\"item-4-title-link\"]")).to_be_visible()
+
+    def expect_text(self, locator, text):
+        expect(self.page.locator(locator)).to_contain_text(text)
+
+    def expect(self):
+        expect(self.page.locator("[data-test=\"item-4-title-link\"]")).to_be_visible()
 
 def run(playwright: Playwright) -> None:
     browser = playwright.chromium.launch(headless=False)

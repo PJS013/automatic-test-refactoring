@@ -1,5 +1,7 @@
 import ast
 
+from Normalize import normalize_instruction
+
 
 class TransformToPageObject(ast.NodeTransformer):
     def __init__(self, methods):
@@ -12,6 +14,7 @@ class TransformToPageObject(ast.NodeTransformer):
             while i < len(node.body):
                 matched = False
                 if isinstance(node.body[i], ast.Expr):
+                    matches = []
                     for method in self.methods:
                         end = i + len(method.body_nodes)
                         if end > len(node.body):
@@ -25,12 +28,16 @@ class TransformToPageObject(ast.NodeTransformer):
                         if bindings is None:
                             continue
 
-                        instance_name = find_class_instance(node, new_body, method.class_name)
+                        matches.append((method, bindings, len(method.body_nodes)))
+
+                    if matches:
+                        best_method, best_bindings, best_length = max(matches, key=lambda x: x[2])
+                        instance_name = find_class_instance(node, new_body, best_method.class_name)
                         if instance_name is None:
                             assign_node = ast.Assign(
-                                targets=[ast.Name(id=method.class_name.lower(), ctx=ast.Store())],
+                                targets=[ast.Name(id=best_method.class_name.lower(), ctx=ast.Store())],
                                 value=ast.Call(
-                                    func=ast.Name(id=method.class_name, ctx=ast.Load()),
+                                    func=ast.Name(id=best_method.class_name, ctx=ast.Load()),
                                     args=[ast.Name(id='page', ctx=ast.Load())],
                                     keywords=[]
                                 ),
@@ -38,15 +45,11 @@ class TransformToPageObject(ast.NodeTransformer):
                             )
                             ast.copy_location(assign_node, node.body[i])
                             new_body.append(assign_node)
-                            instance_name = method.class_name.lower()
-
-
-                        replacement = self.build_call(method, bindings, instance_name)
+                            instance_name = best_method.class_name.lower()
+                        replacement = self.build_call(best_method, best_bindings, instance_name)
                         new_body.append(replacement)
-                        i += len(method.body_nodes)
+                        i += best_length
                         matched = True
-                        break
-
                 if not matched:
                     new_body.append(node.body[i])
                     i += 1
@@ -73,18 +76,12 @@ class TransformToPageObject(ast.NodeTransformer):
 
 
 def normalize_node(node):
-    try:
-        action = node.value.func.attr
-        locator = None
-        if isinstance(node.value.func.value.func, ast.Name):
-            if node.value.func.value.func.id == 'expect':
-                locator = node.value.func.value.args[0].func.attr
-        else:
-            locator = node.value.func.value.func.attr
-
-        return (action, locator)
-    except AttributeError:
+    normalized = normalize_instruction(node)
+    if normalized is None:
         return None
+    mod_shape = tuple(m[0] for m in normalized.modifiers)
+    return (normalized.action, normalized.locator_method, mod_shape,
+            normalized.is_assertion, normalized.is_negated)
 
 
 def sequences_match_shape(pattern_nodes, candidate_nodes):
@@ -97,48 +94,6 @@ def sequences_match_shape(pattern_nodes, candidate_nodes):
             return False
     return True
 
-def extract_bindings(pattern_nodes, candidate_nodes):
-    bindings = {}
-    for p, c in zip(pattern_nodes, candidate_nodes):
-        try:
-            p_locator_arg = p.value.func.value.args[0]
-            c_locator_arg = c.value.func.value.args[0]
-
-            if isinstance(p_locator_arg, ast.Name):
-                bindings[p_locator_arg.id] = ast.unparse(c_locator_arg)[1:-1]
-            elif isinstance(p_locator_arg, ast.Constant):
-                if isinstance(c_locator_arg, ast.Constant):
-                    if p_locator_arg.value != c_locator_arg.value:
-                        return None
-                else:
-                    return None
-            elif isinstance(p_locator_arg, ast.Call):
-                for arg in p_locator_arg.args:
-                    if isinstance(arg, ast.Name):
-                        bindings[arg.id] = c_locator_arg.args[0].value
-                    elif isinstance(arg, ast.Constant):
-                        if isinstance(c_locator_arg, ast.Constant):
-                            if arg.value != c_locator_arg.value:
-                                return None
-                        else:
-                            return None
-
-            p_value_arg = p.value.args[0] if p.value.args else None
-            c_value_arg = c.value.args[0] if c.value.args else None
-
-            if p_value_arg and c_value_arg:
-                if isinstance(p_value_arg, ast.Name):
-                    bindings[p_value_arg.id] = ast.unparse(c_value_arg)[1:-1]
-                elif isinstance(p_value_arg, ast.Constant):
-                    if isinstance(c_value_arg.value, ast.Constant):
-                        if p_value_arg.value != c_value_arg.value:
-                            return None
-                    else:
-                        return None
-        except (AttributeError, IndexError):
-            return None
-    return bindings
-
 def find_class_instance(node, new_body, class_name):
     for child in node.body:
         if isinstance(child, ast.Assign):
@@ -150,4 +105,58 @@ def find_class_instance(node, new_body, class_name):
             if isinstance(child.value.func, ast.Name):
                 if child.value.func.id == class_name:
                     return child.targets[0].id
+    return None
+
+def extract_bindings(pattern_nodes, candidate_nodes):
+    bindings = {}
+    for p_node, c_node in zip(pattern_nodes, candidate_nodes):
+        p = normalize_instruction(p_node)
+        c = normalize_instruction(c_node)
+        if p is None or c is None:
+            return None
+
+        for p_argument, c_argument in zip(p.locator_arguments, c.locator_arguments):
+            result = match_arg(p_argument, c_argument, bindings)
+            if result is False:
+                return None
+
+        for key, p_value in p.locator_keywords.items():
+            c_value = c.locator_keywords.get(key)
+            result = match_arg(p_value, c_value, bindings)
+            if result is False:
+                return None
+
+        for p_argument, c_argument in zip(p.action_arguments, c.action_arguments):
+            result = match_arg(p_argument, c_argument, bindings)
+            if result is False:
+                return None
+
+        for key, p_value in p.action_keywords.items():
+            c_value = c.action_keywords.get(key)
+            result = match_arg(p_value, c_value, bindings)
+            if result is False:
+                return None
+
+        for p_modifier, c_modifier in zip(p.modifiers, c.modifiers):
+            for p_argument, c_argument in zip(p_modifier[1], c_modifier[1]):
+                result = match_arg(p_argument, c_argument, bindings)
+                if result is False:
+                    return None
+
+    return bindings
+
+
+def match_arg(p_value, c_value, bindings):
+    if p_value is None:
+        return None
+
+    if isinstance(p_value, str) and p_value.isidentifier():
+        # This is a parameter
+        bindings[p_value] = c_value
+        return None
+
+    # Otherwise it's a literal
+    if p_value != c_value:
+        return False
+
     return None
