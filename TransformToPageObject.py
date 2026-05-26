@@ -127,31 +127,57 @@ def extract_bindings(pattern_nodes, candidate_nodes):
         if p is None or c is None:
             return None
 
-        if p.locator_arguments is not None and c.locator_arguments is not None:
-            for p_argument, c_argument in zip(p.locator_arguments, c.locator_arguments):
-                result = match_arg(p_argument, c_argument, bindings)
-                if result is False:
-                    return None
+        if p.locator_arguments is not None and len(p.locator_arguments) > 0:
+            if c.locator_arguments is not None and len(c.locator_arguments) > 0:
+                for p_argument, c_argument in zip(p.locator_arguments, c.locator_arguments):
+                    result = match_arg(p_argument, c_argument, bindings)
+                    if result is False:
+                        return None
+            elif c.locator_keywords is not None and len(c.locator_keywords) > 0:
+                for p_argument, c_keyword in zip(p.locator_arguments, c.locator_keywords):
+                    result = match_arg(p_argument, c.locator_keywords[c_keyword], bindings)
+                    if result is False:
+                        return None
 
-        if p.locator_keywords is not None and c.locator_keywords is not None:
-            for key, p_value in p.locator_keywords.items():
-                c_value = c.locator_keywords.get(key)
-                result = match_arg(p_value, c_value, bindings)
-                if result is False:
-                    return None
+        if p.locator_keywords is not None and len(p.locator_keywords) > 0:
+            if c.locator_arguments is not None and len(c.locator_arguments) > 0:
+                for p_keyword, c_argument in zip(p.locator_keywords, c.locator_arguments):
+                    result = match_arg(p.locator_keywords[p_keyword], c_argument, bindings)
+                    if result is False:
+                        return None
 
-        if p.action_arguments is not None and c.action_arguments is not None:
-            for p_argument, c_argument in zip(p.action_arguments, c.action_arguments):
-                result = match_arg(p_argument, c_argument, bindings)
-                if result is False:
-                    return None
+            elif c.locator_keywords is not None and len(c.locator_keywords) > 0:
+                for key, p_value in p.locator_keywords.items():
+                    c_value = c.locator_keywords.get(key)
+                    result = match_arg(p_value, c_value, bindings)
+                    if result is False:
+                        return None
 
-        if p.action_keywords is not None and c.action_keywords is not None:
-            for key, p_value in p.action_keywords.items():
-                c_value = c.action_keywords.get(key)
-                result = match_arg(p_value, c_value, bindings)
-                if result is False:
-                    return None
+        if p.action_arguments is not None and len(p.action_arguments) > 0:
+            if c.action_arguments is not None and len(c.action_arguments) > 0:
+                for p_argument, c_argument in zip(p.action_arguments, c.action_arguments):
+                    result = match_arg(p_argument, c_argument, bindings)
+                    if result is False:
+                        return None
+            elif c.action_keywords is not None and len(c.action_keywords) > 0:
+                for p_argument, c_keyword in zip(p.action_arguments, c.action_keywords):
+                    result = match_arg(p_argument, c.action_keywords[c_keyword], bindings)
+                    if result is False:
+                        return None
+
+        if p.action_keywords is not None and len(p.action_keywords) > 0:
+            if c.action_arguments is not None and len(c.action_arguments) > 0:
+                for p_keyword, c_argument in zip(p.action_keywords, c.action_arguments):
+                    result = match_arg(p.action_keywords[p_keyword], c_argument, bindings)
+                    if result is False:
+                        return None
+
+            elif c.action_keywords is not None and len(c.action_keywords) > 0:
+                for key, p_value in p.action_keywords.items():
+                    c_value = c.action_keywords.get(key)
+                    result = match_arg(p_value, c_value, bindings)
+                    if result is False:
+                        return None
 
         if p.modifiers is not None and c.modifiers is not None:
             for p_modifier, c_modifier in zip(p.modifiers, c.modifiers):
@@ -162,6 +188,16 @@ def extract_bindings(pattern_nodes, candidate_nodes):
                             return None
                 elif len(p_modifier[2]) > 0 and len(c_modifier[2]) > 0:
                     for p_argument, c_argument in zip(p_modifier[2].values(), c_modifier[2].values()):
+                        result = match_arg(p_argument, c_argument, bindings)
+                        if result is False:
+                            return None
+                elif len(p_modifier[1]) > 0 and len(c_modifier[2]) > 0:
+                    for p_argument, c_argument in zip(p_modifier[1], c_modifier[2].values()):
+                        result = match_arg(p_argument, c_argument, bindings)
+                        if result is False:
+                            return None
+                elif len(p_modifier[2]) > 0 and len(c_modifier[1]) > 0:
+                    for p_argument, c_argument in zip(p_modifier[2].values(), c_modifier[1]):
                         result = match_arg(p_argument, c_argument, bindings)
                         if result is False:
                             return None

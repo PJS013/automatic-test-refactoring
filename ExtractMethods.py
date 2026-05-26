@@ -4,7 +4,7 @@ import copy
 from Normalize import normalize_instruction
 from TransformToPageObject import normalize_node
 
-MIN_LENGTH = 2
+MIN_LENGTH = 3
 
 
 class InstructionSequence:
@@ -24,9 +24,15 @@ class InstructionSequence:
         self.occurrence_number += 1
 
 class SequenceMatcher(ast.NodeTransformer):
-    def __init__(self):
+    def __init__(self, miscMethods):
         self.sequences = {}
         self.NEW_METHOD_COUNTER = 0
+        misc = {}
+        for method in miscMethods:
+            if isinstance(method, ast.FunctionDef):
+                sequence = InstructionSequence(method.body)
+                misc[sequence.shape] = sequence
+        self.MiscMethods = misc
 
     def get_next_method_name(self, module_node, class_name):
         # if class_name not in self.sequences.values():
@@ -55,10 +61,11 @@ class SequenceMatcher(ast.NodeTransformer):
             for j in range(0, len(node.body) - i + 1):
                 window = node.body[j : j + i]
                 seq = InstructionSequence(window)
-                if seq.shape in self.sequences:
-                    self.sequences[seq.shape].increase_occurrence_number()
-                else:
-                    self.sequences[seq.shape] = seq
+                if seq.shape not in self.MiscMethods:
+                    if seq.shape in self.sequences and self.sequences[seq.shape].length == seq.length:
+                        self.sequences[seq.shape].increase_occurrence_number()
+                    else:
+                        self.sequences[seq.shape] = seq
 
         return node
 
@@ -71,7 +78,7 @@ class SequenceMatcher(ast.NodeTransformer):
         best_match = None
         best_score = 0
         for key, sequence in self.sequences.items():
-            score = (sequence.occurrence_number) * (sequence.length ** 0.5)
+            score = (sequence.occurrence_number ** 3) * (sequence.length)
             if score > best_score and sequence.occurrence_number > 1:
                 best_score = score
                 best_match = sequence
