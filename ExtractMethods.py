@@ -208,13 +208,13 @@ class SequenceMatcher(ast.NodeTransformer):
         )
         ast.fix_missing_locations(new_class)
 
-        insert_at = 0
-        for idx, node in enumerate(module_node.body):
-            if isinstance(node, ast.FunctionDef):
-                insert_at = idx
-                break
+        # insert_at = 0
+        # for idx, node in enumerate(module_node.body):
+        #     if isinstance(node, ast.FunctionDef):
+        #         insert_at = idx
+        #         break
 
-        module_node.body.insert(insert_at, new_class)
+        module_node.body.append(new_class)
         return module_node
 
     def transform_page_references(self, node):

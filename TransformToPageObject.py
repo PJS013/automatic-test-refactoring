@@ -33,6 +33,7 @@ class TransformToPageObject(ast.NodeTransformer):
 
                     if matches:
                         best_method, best_bindings, best_length = max(matches, key=lambda x: x[2])
+                        print(f"[INFO] Substituting {best_method.name}")
                         instance_name, instance_lineno = find_class_instance(node, new_body, best_method.class_name)
                         if instance_name is None:
                             assign_node = ast.Assign(
@@ -48,7 +49,6 @@ class TransformToPageObject(ast.NodeTransformer):
                             new_body.append(assign_node)
                             instance_name = best_method.class_name.lower()
                         else:
-                            # TODO: Get Back
                             # print("New body " + str(len(new_body)))
                             if instance_lineno > len(new_body)+1:
                                 temp = node.body[instance_lineno-1]
@@ -210,11 +210,9 @@ def match_arg(p_value, c_value, bindings):
         return None
 
     if isinstance(p_value, str) and p_value.isidentifier():
-        # This is a parameter
         bindings[p_value] = c_value
         return None
 
-    # Otherwise it's a literal
     if p_value != c_value:
         return False
 

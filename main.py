@@ -7,35 +7,40 @@ from ExtractMethods import SequenceMatcher
 from MethodCollector import MethodCollector
 from TransformToPageObject import TransformToPageObject
 
-# def read_file(path):
-#     with open(path) as f:
-#         return f.read()
+def read_file(path):
+    with open(path) as f:
+        print(f"[INFO] Reading {path}")
+        return f.read()
+
+def write_file(path, content):
+    with open(path, "w") as f:
+        print(f"[DONE] Writing {path}")
+        f.write(content)
 
 
 with open("refactor_config.json") as f:
     config = json.load(f)
-
+print("[INFO] Config file loaded")
 all_methods = []
 po_trees = {}
 
 for po_path in config["page_objects"]:
-    with open(po_path) as f:
-        tree = ast.parse(f.read())
+    tree = ast.parse(read_file(po_path))
     collector = MethodCollector()
     collector.visit(tree)
     all_methods.extend(collector.methods)
     po_trees[po_path] = tree
-
+print(f"[INFO] All POM classes visited, collected {len(all_methods)} methods")
 generated_path = os.path.join(config["output_dir"], config["generated_class"] + ".py")
 
 if os.path.exists(generated_path):
-    with open(generated_path) as f:
-        generated_tree = ast.parse(f.read())
+    generated_tree = ast.parse(read_file(generated_path))
 else:
     generated_tree = ast.parse(
         "from playwright.sync_api import Page, expect\n"
     )
     os.makedirs(os.path.dirname(generated_path), exist_ok=True)
+    print(f"[INFO] Generating {generated_path}")
 
 collector = MethodCollector()
 collector.visit(generated_tree)
@@ -46,17 +51,18 @@ generated_methods = collector.methods
 test_trees = {}
 
 for test_path in config["test_scripts"]:
-    with open(test_path) as f:
-        tree = ast.parse(f.read())
+    tree = ast.parse(read_file(test_path))
     test_script_names = {
-        node.name for node in ast.walk(tree)
-        if isinstance(node, ast.FunctionDef)
+        node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
     }
     transformer = ClickRemover()
     tree = transformer.visit(tree)
+    print(f"[INFO] Clicks removed in {test_path}")
     all_methods.extend(generated_methods)
     transformer = TransformToPageObject(all_methods, test_script_names)
+    print(f"[INFO] Methods substitution started in {test_path}")
     tree = transformer.visit(tree)
+    print(f"[INFO] Methods substitution ended in {test_path}")
 
     test_trees[test_path] = tree
 matcher = SequenceMatcher(generated_methods)
@@ -68,10 +74,11 @@ for tree in test_trees.values():
 
 candidate = matcher.get_candidate()
 if candidate:
+    print(f"[INFO] New method generation...")
     generated_tree = matcher.create_new_method(generated_tree)
     ast.fix_missing_locations(generated_tree)
-    with open(generated_path, "w") as f:
-        f.write(ast.unparse(generated_tree))
+    print(f"[INFO] New method generated")
+    write_file(generated_path, ast.unparse(generated_tree))
 
     new_collector = MethodCollector()
     new_collector.visit(generated_tree)
@@ -82,17 +89,19 @@ if candidate:
             node.name for node in ast.walk(tree)
             if isinstance(node, ast.FunctionDef)
         }
+        print(f"[INFO] Methods substitution started in {test_path}")
         transformer = TransformToPageObject(new_collector.methods, test_script_names)
 
         tree = transformer.visit(tree)
+        print(f"[INFO] Methods substitution ended in {test_path}")
         test_trees[test_path] = tree
 
 for test_path, tree in test_trees.items():
     ast.fix_missing_locations(tree)
     out_path = test_path.replace("tests/", "tests_refactored/")
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    with open(out_path, "w") as f:
-        f.write(ast.unparse(tree))
+    write_file(out_path, ast.unparse(tree))
+
 
 # code = open("tests/test.py").read()
 # tree = ast.parse(code)

@@ -1,7 +1,7 @@
 {
   "test_scripts": [
-    "tests_refactored/test.py",
-    "tests_refactored/test1.py"
+    "tests/test.py",
+    "tests/test1.py"
   ],
   "page_objects": [
     "page_objects/LoginPage.py",
