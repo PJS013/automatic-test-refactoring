@@ -15,7 +15,12 @@ class InstructionSequence:
         self.length = len(nodes)
 
     def compute_shape(self):
+        # try:
         return tuple(normalize_node(n) for n in self.nodes)
+        # except Exception as e:
+        #     print(f"Error computing shape: {type(e).__name__}: {e}")
+        #     print(f"  Nodes: {[ast.dump(n) for n in self.nodes]}")
+        #     return ()
 
     def __eq__(self, other):
         return self.shape == other.shape
@@ -29,9 +34,9 @@ class SequenceMatcher(ast.NodeTransformer):
         self.NEW_METHOD_COUNTER = 0
         misc = {}
         for method in miscMethods:
-            if isinstance(method, ast.FunctionDef):
-                sequence = InstructionSequence(method.body)
-                misc[sequence.shape] = sequence
+            # if isinstance(method, ast.FunctionDef):
+            sequence = InstructionSequence(method.body_nodes)
+            misc[sequence.shape] = sequence
         self.MiscMethods = misc
 
     def get_next_method_name(self, module_node, class_name):
@@ -61,6 +66,10 @@ class SequenceMatcher(ast.NodeTransformer):
             for j in range(0, len(node.body) - i + 1):
                 window = node.body[j : j + i]
                 seq = InstructionSequence(window)
+                if seq.shape is None:
+                    continue
+                if any(inner[-1] for inner in seq.shape if inner is not None):
+                    continue
                 if seq.shape not in self.MiscMethods:
                     if seq.shape in self.sequences and self.sequences[seq.shape].length == seq.length:
                         self.sequences[seq.shape].increase_occurrence_number()
@@ -173,10 +182,12 @@ class SequenceMatcher(ast.NodeTransformer):
         )
         ast.fix_missing_locations(new_method)
         self.NEW_METHOD_COUNTER += 1
+        return new_method
 
+    def embed_new_method_in_class(self, method, module_node):
         for node in module_node.body:
             if isinstance(node, ast.ClassDef) and node.name == "MiscClass":
-                node.body.append(new_method)
+                node.body.append(method)
                 return module_node
 
         new_class = ast.ClassDef(
@@ -203,7 +214,7 @@ class SequenceMatcher(ast.NodeTransformer):
                             value=ast.Name(id='page', ctx=ast.Load())),
                     ]
                 ),
-                new_method
+                method
             ]
         )
         ast.fix_missing_locations(new_class)
@@ -216,6 +227,8 @@ class SequenceMatcher(ast.NodeTransformer):
 
         module_node.body.append(new_class)
         return module_node
+
+
 
     def transform_page_references(self, node):
         class PageReferenceTransformer(ast.NodeTransformer):

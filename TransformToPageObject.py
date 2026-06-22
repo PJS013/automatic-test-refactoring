@@ -30,6 +30,7 @@ class TransformToPageObject(ast.NodeTransformer):
                             continue
 
                         matches.append((method, bindings, len(method.body_nodes)))
+                    print(f"[DEBUG] At position {i}, found {len(matches)} matches: {[m[0].name for m in matches]}")
 
                     if matches:
                         best_method, best_bindings, best_length = max(matches, key=lambda x: x[2])
@@ -91,7 +92,7 @@ def normalize_node(node):
         return None
     mod_shape = tuple(m[0] for m in normalized.modifiers)
     return (normalized.action, normalized.locator_method, mod_shape,
-            normalized.is_assertion, normalized.is_negated)
+            normalized.is_assertion, normalized.is_negated, normalized.is_setup)
 
 
 def sequences_match_shape(pattern_nodes, candidate_nodes):

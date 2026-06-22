@@ -12,9 +12,13 @@ class NormalizedInstruction:
     action_keywords: dict
     is_assertion: bool
     is_negated: bool
+    operation_type: str
+    assign_target: str
+    is_setup: bool
 
     def __init__(self, root, locator_method, locator_arguments, locator_keywords,
-                 modifiers, action, action_arguments, action_keywords, is_assertion, is_negated):
+                 modifiers, action, action_arguments, action_keywords, is_assertion, is_negated,
+                 operation_type, assign_target, is_setup):
         self.root = root
         self.locator_method = locator_method
         self.locator_arguments = locator_arguments
@@ -25,18 +29,47 @@ class NormalizedInstruction:
         self.action_keywords = action_keywords
         self.is_assertion = is_assertion
         self.is_negated = is_negated
+        self.operation_type = operation_type
+        self.assign_target = assign_target
+        self.is_setup = is_setup
 
     def __eq__(self, other):
         return (self.root == other.root and self.locator_method == other.locator_method and
                 self.locator_arguments == other.locator_arguments and self.locator_keywords == other.locator_keywords and
                 self.modifiers == other.modifiers and self.action == other.action and self.action_arguments == other.action_arguments and
-                self.action_keywords == other.action_keywords and self.is_assertion == other.is_assertion and self.is_negated == other.is_negated)
+                self.action_keywords == other.action_keywords and self.is_assertion == other.is_assertion and self.is_negated == other.is_negated
+                and self.operation_type == other.operation_type and self.assign_target == other.assign_target, self.is_setup == other.is_setup)
 
 def normalize_instruction(node):
-    if not isinstance(node, ast.Expr):
+    is_setup = False
+    if isinstance(node, ast.Expr):
+        operation_type = "expr"
+        assign_target = None
+        call = node.value
+        if isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute):
+            if isinstance(call.func.value, ast.Name):
+               if call.func.value.id in ["context", "browser"]:
+                    is_setup = True
+
+    elif isinstance(node, ast.Assign):
+        operation_type = "assign"
+        assign_target = node.targets[0].id
+        call = node.value
+        if isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute):
+            if isinstance(call.func.value, ast.Name):
+                if call.func.value.id in ["context", "browser"]:
+                    is_setup = True
+            elif isinstance(call.func.value.value, ast.Name):
+                if call.func.value.value.id == "playwright":
+                    is_setup = True
+        # else:
+
+
+    else:
         return None
 
-    call = node.value
+    # call = node.value
+
     if not isinstance(call, ast.Call):
         return None
     if not isinstance(call.func, ast.Attribute):
@@ -72,7 +105,10 @@ def normalize_instruction(node):
                     action_arguments=action_arguments,
                     action_keywords=action_keywords,
                     is_assertion=is_assertion,
-                    is_negated=is_negated
+                    is_negated=is_negated,
+                    operation_type=operation_type,
+                    assign_target=assign_target,
+                    is_setup=is_setup
                 )
     modifiers = []
     while True:
@@ -125,6 +161,9 @@ def normalize_instruction(node):
         action_keywords=action_keywords,
         is_assertion=is_assertion,
         is_negated=is_negated,
+        operation_type=operation_type,
+        assign_target=assign_target,
+        is_setup=is_setup
     )
 
 
