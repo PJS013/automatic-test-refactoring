@@ -35,7 +35,11 @@ class TransformToPageObject(ast.NodeTransformer):
                     if matches:
                         best_method, best_bindings, best_length = max(matches, key=lambda x: x[2])
                         print(f"[INFO] Substituting {best_method.name}")
-                        instance_name, instance_lineno = find_class_instance(node, new_body, best_method.class_name)
+                        instance_name = find_class_instance(new_body, best_method.class_name)
+
+                        if instance_name is None:
+                            instance_name = retrieve_class_instance(node.body, new_body, best_method.class_name)
+
                         if instance_name is None:
                             assign_node = ast.Assign(
                                 targets=[ast.Name(id=best_method.class_name.lower(), ctx=ast.Store())],
@@ -49,12 +53,6 @@ class TransformToPageObject(ast.NodeTransformer):
                             ast.copy_location(assign_node, node.body[i])
                             new_body.append(assign_node)
                             instance_name = best_method.class_name.lower()
-                        else:
-                            # print("New body " + str(len(new_body)))
-                            if instance_lineno > len(new_body)+1:
-                                temp = node.body[instance_lineno-1]
-                                node.body.remove(temp)
-                                new_body.append(temp)
 
 
                         replacement = self.build_call(best_method, best_bindings, instance_name)
@@ -65,11 +63,13 @@ class TransformToPageObject(ast.NodeTransformer):
                     new_body.append(node.body[i])
                     i += 1
 
+
+
             node.body = new_body
         return node
 
     def build_call(self, method, bindings, instance_name):
-        args = [
+        keywords = [
             ast.keyword(arg=arg.arg, value=ast.Constant(value=bindings[arg.arg]))
             for arg in method.args
             if arg.arg != 'self' and arg.arg in bindings
@@ -80,8 +80,8 @@ class TransformToPageObject(ast.NodeTransformer):
                 attr=method.name,
                 ctx=ast.Load()
             ),
-            args=args,
-            keywords=[]
+            args=[],
+            keywords=keywords
         )
         return ast.Expr(value=call)
 
@@ -105,20 +105,44 @@ def sequences_match_shape(pattern_nodes, candidate_nodes):
             return False
     return True
 
-def find_class_instance(node, new_body, class_name):
-    for child in node.body:
-        if isinstance(child, ast.Assign):
-            if isinstance(child.value.func, ast.Name):
-                if child.value.func.id == class_name:
-                    # print(child.targets[0].id, child.value.func.id, child.lineno - node.lineno)
-                    return child.targets[0].id, child.lineno - node.lineno
-    for child in new_body:
-        if isinstance(child, ast.Assign):
-            if isinstance(child.value.func, ast.Name):
-                if child.value.func.id == class_name:
-                    # print(child.targets[0].id, child.value.func.id, child.lineno - node.lineno)
-                    return child.targets[0].id, child.lineno - node.lineno
-    return None, None
+# def find_class_instance(node, new_body, class_name):
+    # for child in node.body:
+    #     if isinstance(child, ast.Assign):
+    #         if isinstance(child.value.func, ast.Name):
+    #             if child.value.func.id == class_name:
+    #                 # print(child.targets[0].id, child.value.func.id, child.lineno - node.lineno)
+    #                 return child.targets[0].id, child.lineno - node.lineno
+    # for child in new_body:
+    #     if isinstance(child, ast.Assign):
+    #         if isinstance(child.value.func, ast.Name):
+    #             if child.value.func.id == class_name:
+    #                 # print(child.targets[0].id, child.value.func.id, child.lineno - node.lineno)
+    #                 return child.targets[0].id, child.lineno - node.lineno
+    # return None, None
+
+def find_class_instance(new_body, class_name):
+    for node in new_body:
+        if isinstance(node, ast.Assign):
+            try:
+                if isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Name):
+                    if node.value.func.id == class_name:
+                        return node.targets[0].id
+            except AttributeError:
+                pass
+    return None
+
+def retrieve_class_instance(old_body, new_body, class_name):
+    for idx, node in enumerate(old_body):
+        if isinstance(node, ast.Assign):
+            try:
+                if isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Name):
+                    if node.value.func.id == class_name:
+                        old_body.pop(idx)
+                        new_body.append(node)
+                        return node.targets[0].id
+            except AttributeError:
+                pass
+    return None
 
 def extract_bindings(pattern_nodes, candidate_nodes):
     bindings = {}

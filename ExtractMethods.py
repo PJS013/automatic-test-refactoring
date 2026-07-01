@@ -29,7 +29,7 @@ class InstructionSequence:
         self.occurrence_number += 1
 
 class SequenceMatcher(ast.NodeTransformer):
-    def __init__(self, miscMethods):
+    def __init__(self, miscMethods, instance_map):
         self.sequences = {}
         self.NEW_METHOD_COUNTER = 0
         misc = {}
@@ -38,6 +38,7 @@ class SequenceMatcher(ast.NodeTransformer):
             sequence = InstructionSequence(method.body_nodes)
             misc[sequence.shape] = sequence
         self.MiscMethods = misc
+        self.instance_map = instance_map
 
     def get_next_method_name(self, module_node, class_name):
         # if class_name not in self.sequences.values():
@@ -65,6 +66,8 @@ class SequenceMatcher(ast.NodeTransformer):
         for i in range(MIN_LENGTH, len(node.body) + 1):
             for j in range(0, len(node.body) - i + 1):
                 window = node.body[j : j + i]
+                if any(isinstance(n, ast.Assign) for n in window):
+                    continue
                 seq = InstructionSequence(window)
                 if seq.shape is None:
                     continue
@@ -105,17 +108,15 @@ class SequenceMatcher(ast.NodeTransformer):
             # print("Create new method none")
             return None
 
+        used_names = self.find_used_names(candidate_sequence.nodes, self.instance_map)
+
+        print(used_names)
+
         bindings = {}
         for node in candidate_sequence.nodes:
             normalized_node = normalize_instruction(node)
-            # print(normalized_node.locator_arguments)
-            # print(normalized_node.locator_keywords)
-            # print(normalized_node.action_arguments)
-            # print(normalized_node.action_keywords)
-            # print(normalized_node.modifiers)
             if normalized_node is None:
                 continue
-
             if normalized_node.locator_arguments is not None:
                 for arg in normalized_node.locator_arguments:
                     if arg not in bindings:
@@ -154,11 +155,13 @@ class SequenceMatcher(ast.NodeTransformer):
                                     bindings[elem] = f"modifiers_{action_modifier_counter}"
                                     action_modifier_counter += 1
 
-
+        print(bindings)
         transformed_nodes = []
         for node in candidate_sequence.nodes:
             copied_node = copy.deepcopy(node)
-            transformed_node = self.transform_page_references(copied_node)
+            transformed_node = self.transform_instance_references(copied_node, "page")
+            for used_name in used_names:
+                transformed_node = self.transform_instance_references(transformed_node, used_name)
             transformed_node = self.apply_substitution(transformed_node, bindings)
             transformed_nodes.append(transformed_node)
 
@@ -182,13 +185,37 @@ class SequenceMatcher(ast.NodeTransformer):
         )
         ast.fix_missing_locations(new_method)
         self.NEW_METHOD_COUNTER += 1
-        return new_method
+        return new_method, used_names
 
-    def embed_new_method_in_class(self, method, module_node):
+    def embed_new_method_in_class(self, method, module_node, used_names):
         for node in module_node.body:
             if isinstance(node, ast.ClassDef) and node.name == "MiscClass":
+                init_method = None
+
+                for child in node.body:
+                    if isinstance(child, ast.FunctionDef):
+                        init_method = child
+                        break
+
+                if init_method is not None:
+                    existing_arguments = set(arg.arg for arg in init_method.args.args)
+                    print(existing_arguments)
+
+                    for name in used_names:
+                        if name not in existing_arguments and name != "miscclass":
+                            print("Name " + name)
+                            init_method.args.args.append(ast.arg(arg=name))
+                            init_method.body.append(ast.Assign(targets=[
+                                ast.Attribute(
+                                    value=ast.Name(id="self", ctx=ast.Load()),
+                                    attr=name,
+                                    ctx=ast.Store())],
+                            value=ast.Name(id=name, ctx=ast.Load())))
                 node.body.append(method)
                 return module_node
+
+        arg_list = ([ast.arg(arg='self'), ast.arg(arg='page')]
+                    + [ast.arg(arg=name) for name in used_names if used_names is not None and name != "miscclass"])
 
         new_class = ast.ClassDef(
             name="MiscClass",
@@ -197,7 +224,7 @@ class SequenceMatcher(ast.NodeTransformer):
                     name="__init__",
                     args=ast.arguments(
                         posonlyargs=[],
-                        args=[ast.arg(arg='self'), ast.arg(arg='page')],
+                        args=arg_list,
                         vararg=None,
                         kwonlyargs=[],
                         kw_defaults=[],
@@ -212,40 +239,41 @@ class SequenceMatcher(ast.NodeTransformer):
                                     attr='page',
                                     ctx=ast.Store())],
                             value=ast.Name(id='page', ctx=ast.Load())),
-                    ]
+                    ] + [
+                        ast.Assign(
+                            targets=[
+                                ast.Attribute(
+                                    value=ast.Name(id='self', ctx=ast.Load()),
+                                    attr=name,
+                                    ctx=ast.Store())],
+                            value=ast.Name(id=name, ctx=ast.Load()))
+                        for name in used_names if used_names is not None and name != "miscclass"]
                 ),
                 method
             ]
         )
         ast.fix_missing_locations(new_class)
 
-        # insert_at = 0
-        # for idx, node in enumerate(module_node.body):
-        #     if isinstance(node, ast.FunctionDef):
-        #         insert_at = idx
-        #         break
-
         module_node.body.append(new_class)
         return module_node
 
 
 
-    def transform_page_references(self, node):
-        class PageReferenceTransformer(ast.NodeTransformer):
-            def visit_Attribute(self, attr_node):
-                if isinstance(attr_node.value, ast.Name) and attr_node.value.id == "page":
+    def transform_instance_references(self, node, instance_name):
+        class InstanceReferenceTransformer(ast.NodeTransformer):
+            def visit_Name(self, name_node):
+                if instance_name == "miscclass":
+                    if name_node.id == instance_name:
+                        name_node.id = 'self'
+                if name_node.id == instance_name:
                     return ast.Attribute(
-                        value=ast.Attribute(
                             value=ast.Name(id='self', ctx=ast.Load()),
-                            attr='page',
+                            attr=instance_name,
                             ctx=ast.Store()
-                        ),
-                        attr=attr_node.attr,
-                        ctx=attr_node.ctx
-                    )
-                return self.generic_visit(attr_node)
+                        )
+                return self.generic_visit(name_node)
 
-        transformer = PageReferenceTransformer()
+        transformer = InstanceReferenceTransformer()
         return transformer.visit(node)
 
     def apply_substitution(self, node, bindings):
@@ -273,3 +301,13 @@ class SequenceMatcher(ast.NodeTransformer):
 
         return ConstantReplacer().visit(node)
 
+    def find_used_names(self, nodes, instance_maps):
+        found_classes = set()
+        class UsedNameFinder(ast.NodeVisitor):
+            def visit_Name(self, node):
+                if node.id in instance_maps.keys():
+                    found_classes.add(node.id)
+        finder = UsedNameFinder()
+        for node in nodes:
+            finder.visit(node)
+        return found_classes
