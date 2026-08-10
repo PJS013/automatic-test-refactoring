@@ -1,7 +1,6 @@
 import pytest
 from playwright.sync_api import Playwright, sync_playwright, expect
 
-# @pytest.fixture(name="login_page")
 def run(playwright: Playwright) -> None:
     browser = playwright.chromium.launch(headless=False)
     context = browser.new_context()
@@ -9,7 +8,7 @@ def run(playwright: Playwright) -> None:
     page.goto("https://www.saucedemo.com/")
     page.locator("[data-test=\"username\"]").click()
     page.locator("[data-test=\"username\"]").fill("standard_user")
-    page.locator("[data-test=\"password\"]").click()
+    page.locator("[data-test=\"username\"]").press("Tab")
     page.locator(selector="[data-test=\"password\"]").fill("secret_sauce")
     page.locator("[data-test=\"login-button\"]").click()
     expect(page.locator("[data-test=\"item-4-title-link\"]")).to_be_visible()
@@ -31,11 +30,6 @@ def run(playwright: Playwright) -> None:
     page.get_by_text("Name (A to Z)Name (A to Z)").click()
     page.locator(selector="[data-test=\"product-sort-container\"]").select_option("lohi")
     page.locator("div").filter(has_text="Swag Labs").nth(5).click()
-    # page.goto("https://www.saucedemo.com/inventory.html")
-    # page.get_by_text("$29.99").click()
-    # page.get_by_text("Name (A to Z)Name (A to Z)").click()
-    # page.locator("[data-test=\"product-sort-container\"]").select_option("lohi")
-    # page.locator("div").filter(has_text="Swag Labs").nth(5).click()
     page.get_by_role("button", name="Open Menu").click()
     page.locator("[data-test=\"logout-sidebar-link\"]").click()
     page.locator("[data-test=\"username\"]").click()
@@ -44,8 +38,6 @@ def run(playwright: Playwright) -> None:
     page.locator("[data-test=\"password\"]").fill("secret_sauce")
     page.locator("[data-test=\"login-button\"]").click()
     expect(page.locator("[data-test=\"error\"]")).to_contain_text("Epic sadface: Sorry, this user has been locked out.")
-
-    # ---------------------
     context.close()
     browser.close()
 

@@ -1,9 +1,8 @@
-import ast
 import json
 import os
 
 from ClickRemover import ClickRemover
-from ExtractMethods import SequenceMatcher
+from ExtractMethods import SequenceMatcher, embed_new_method_in_class
 from MethodCollector import MethodCollector
 from PageObjectMethod import PageObjectMethod
 from TransformToPageObject import TransformToPageObject
@@ -44,7 +43,6 @@ print("[INFO] Config file loaded")
 all_methods = []
 po_trees = {}
 
-
 known_classes = {}
 for po_path in config["page_objects"]:
     tree = ast.parse(read_file(po_path))
@@ -64,20 +62,19 @@ if os.path.exists(generated_path):
     for node in generated_tree.body:
         if isinstance(node, ast.ClassDef):
             known_classes[node.name] = generated_path.replace('/', '.').replace('\\', '.').removesuffix(".py")
-
     collector = MethodCollector()
     collector.visit(generated_tree)
     generated_methods = collector.methods
     all_methods.extend(generated_methods)
     print(f"[INFO] All POM classes visited, collected {len(all_methods)} methods")
-
-if not os.path.exists(generated_path):
+else:
     generated_tree = ast.parse(
         "from playwright.sync_api import Page, expect\n"
     )
     os.makedirs(os.path.dirname(generated_path), exist_ok=True)
     print(f"[INFO] Generating {generated_path}")
 
+known_classes[config["generated_class"]] = generated_path.replace('/', '.').replace('\\', '.').removesuffix(".py")
 test_trees = {}
 
 for test_path in config["test_scripts"]:
@@ -103,7 +100,7 @@ for test_tree in test_trees.values():
 instance_map['miscclass'] = 'MiscClass'
 
 while True:
-    matcher = SequenceMatcher(generated_methods, instance_map)
+    matcher = SequenceMatcher(generated_methods, instance_map, all_methods, config["similarity_threshold"])
 
     po_trees[generated_path] = generated_tree
     for tree in test_trees.values():
@@ -123,7 +120,7 @@ while True:
 
     all_methods.append(new_po_method)
     generated_methods.append(new_po_method)
-    generated_tree = matcher.embed_new_method_in_class(new_method, generated_tree, used_names)
+    generated_tree = embed_new_method_in_class(new_method, generated_tree, used_names)
     ast.fix_missing_locations(generated_tree)
     print(f"[INFO] New method generated")
 
@@ -139,7 +136,6 @@ while True:
         print(f"[INFO] Methods substitution ended in {test_path}")
         test_trees[test_path] = tree
     # generated_tree = TransformToPageObject(all_methods, "MiscClass")
-
 generated_tree = update_imports(generated_tree, known_classes)
 write_file(generated_path, ast.unparse(generated_tree))
 

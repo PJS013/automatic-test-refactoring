@@ -8,5 +8,6 @@
     "page_objects/ExpectMethods.py"
   ],
   "output_dir": "page_objects",
-  "generated_class": "MiscClass"
+  "generated_class": "MiscClass",
+  "similarity_threshold": 0.45
 }

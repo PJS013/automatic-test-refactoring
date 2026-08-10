@@ -20,7 +20,6 @@ class TransformToPageObject(ast.NodeTransformer):
                         end = i + len(method.body_nodes)
                         if end > len(node.body):
                             continue
-
                         candidate = node.body[i:end]
 
                         if not sequences_match_shape(method.body_nodes, candidate):
@@ -54,7 +53,6 @@ class TransformToPageObject(ast.NodeTransformer):
                             new_body.append(assign_node)
                             instance_name = best_method.class_name.lower()
 
-
                         replacement = self.build_call(best_method, best_bindings, instance_name)
                         new_body.append(replacement)
                         i += best_length
@@ -62,9 +60,6 @@ class TransformToPageObject(ast.NodeTransformer):
                 if not matched:
                     new_body.append(node.body[i])
                     i += 1
-
-
-
             node.body = new_body
         return node
 
@@ -104,21 +99,6 @@ def sequences_match_shape(pattern_nodes, candidate_nodes):
         if normalized_p != normalized_c or normalized_p is None or normalized_c is None:
             return False
     return True
-
-# def find_class_instance(node, new_body, class_name):
-    # for child in node.body:
-    #     if isinstance(child, ast.Assign):
-    #         if isinstance(child.value.func, ast.Name):
-    #             if child.value.func.id == class_name:
-    #                 # print(child.targets[0].id, child.value.func.id, child.lineno - node.lineno)
-    #                 return child.targets[0].id, child.lineno - node.lineno
-    # for child in new_body:
-    #     if isinstance(child, ast.Assign):
-    #         if isinstance(child.value.func, ast.Name):
-    #             if child.value.func.id == class_name:
-    #                 # print(child.targets[0].id, child.value.func.id, child.lineno - node.lineno)
-    #                 return child.targets[0].id, child.lineno - node.lineno
-    # return None, None
 
 def find_class_instance(new_body, class_name):
     for node in new_body:

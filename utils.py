@@ -7,7 +7,7 @@ def update_imports(tree, known_classes):
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef):
             classes_in_file.add(node.name)
-
+    print(classes_in_file)
     for node in ast.walk(tree):
         if isinstance(node, ast.Name) and node.id in known_classes:
             used_class_instances.add(node.id)

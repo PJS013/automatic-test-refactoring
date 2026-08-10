@@ -1,9 +1,12 @@
 import ast
+from dataclasses import dataclass
+from typing import Optional
 
 
+@dataclass
 class NormalizedInstruction:
     root: str
-    locator_method: str
+    locator_method: Optional[str]
     locator_arguments: list
     locator_keywords: dict
     modifiers: list
@@ -15,30 +18,6 @@ class NormalizedInstruction:
     operation_type: str
     assign_target: str
     is_setup: bool
-
-    def __init__(self, root, locator_method, locator_arguments, locator_keywords,
-                 modifiers, action, action_arguments, action_keywords, is_assertion, is_negated,
-                 operation_type, assign_target, is_setup):
-        self.root = root
-        self.locator_method = locator_method
-        self.locator_arguments = locator_arguments
-        self.locator_keywords = locator_keywords
-        self.modifiers = modifiers
-        self.action = action
-        self.action_arguments = action_arguments
-        self.action_keywords = action_keywords
-        self.is_assertion = is_assertion
-        self.is_negated = is_negated
-        self.operation_type = operation_type
-        self.assign_target = assign_target
-        self.is_setup = is_setup
-
-    def __eq__(self, other):
-        return (self.root == other.root and self.locator_method == other.locator_method and
-                self.locator_arguments == other.locator_arguments and self.locator_keywords == other.locator_keywords and
-                self.modifiers == other.modifiers and self.action == other.action and self.action_arguments == other.action_arguments and
-                self.action_keywords == other.action_keywords and self.is_assertion == other.is_assertion and self.is_negated == other.is_negated
-                and self.operation_type == other.operation_type and self.assign_target == other.assign_target, self.is_setup == other.is_setup)
 
 def normalize_instruction(node):
     is_setup = False
@@ -62,13 +41,9 @@ def normalize_instruction(node):
             elif isinstance(call.func.value.value, ast.Name):
                 if call.func.value.value.id == "playwright":
                     is_setup = True
-        # else:
-
 
     else:
         return None
-
-    # call = node.value
 
     if not isinstance(call, ast.Call):
         return None
