@@ -1,11 +1,11 @@
 {
   "test_scripts": [
-    "tests/new_test.py",
-    "tests/new_test1.py",
-    "tests/new_test2.py",
-    "tests/new_test3.py"
+    "tests/test.py",
+    "tests/test1.py"
   ],
   "page_objects": [
+    "page_objects/LoginPage.py",
+    "page_objects/ExpectMethods.py"
   ],
   "output_dir": "page_objects",
   "generated_class": "MiscClass",

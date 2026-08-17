@@ -1,0 +1,13 @@
+{
+  "test_scripts": [
+    "tests/test.py",
+    "tests/test1.py"
+  ],
+  "page_objects": [
+    "page_objects/LoginPage.py",
+    "page_objects/ExpectMethods.py"
+  ],
+  "output_dir": "page_objects",
+  "generated_class": "MiscClass",
+  "similarity_threshold": -0.1
+}

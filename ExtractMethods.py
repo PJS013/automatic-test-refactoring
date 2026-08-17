@@ -192,10 +192,10 @@ class SequenceMatcher(ast.NodeTransformer):
         best_match = None
         best_score = 0
         for key, sequence in self.sequences.items():
-            pom_similarity = self.get_max_similarity(sequence.nodes)
-
-            if pom_similarity < self.match_threshold:
-                continue
+            if len(self.all_methods) > 2:
+                pom_similarity = self.get_max_similarity(sequence.nodes)
+                if pom_similarity < self.match_threshold:
+                    continue
             score = (sequence.occurrence_number - 1) * sequence.length
 
             if score > best_score and sequence.occurrence_number > 1:
