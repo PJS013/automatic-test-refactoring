@@ -100,7 +100,7 @@ for test_tree in test_trees.values():
 instance_map['miscclass'] = 'MiscClass'
 
 while True:
-    matcher = SequenceMatcher(generated_methods, instance_map, all_methods, config["similarity_threshold"])
+    matcher = SequenceMatcher(generated_methods, instance_map, all_methods, config["similarity_threshold"], config["min_method_len"])
 
     po_trees[generated_path] = generated_tree
     for tree in test_trees.values():

@@ -18,3 +18,7 @@ class MiscClass:
         self.page.locator(locator_arg_1).click()
         self.loginpage.login(locator=action_keyword_7, login=action_keyword_8, password=action_keyword_9)
         expect(self.page.locator(locator_arg_2)).to_contain_text(action_arg_0)
+
+    def generated_2(self, action_keyword_0, action_keyword_1, action_keyword_2, locator_arg_0):
+        self.loginpage.login(locator=action_keyword_0, login=action_keyword_1, password=action_keyword_2)
+        expect(self.page.locator(locator_arg_0)).to_be_visible()

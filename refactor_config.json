@@ -1,13 +1,12 @@
 {
   "test_scripts": [
-    "tests/new_test.py",
-    "tests/new_test1.py",
-    "tests/new_test2.py",
-    "tests/new_test3.py"
+    "test6/tests/test.py"
   ],
   "page_objects": [
+    "test6/page_objects/LoginPage.py"
   ],
-  "output_dir": "page_objects",
+  "output_dir": "test6/page_objects",
   "generated_class": "MiscClass",
-  "similarity_threshold": 0.45
+  "similarity_threshold": 0.45,
+  "min_method_len": 2
 }

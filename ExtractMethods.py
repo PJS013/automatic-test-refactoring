@@ -5,9 +5,6 @@ from Normalize import normalize_instruction
 from TransformToPageObject import normalize_node
 from gst import match
 
-MIN_LENGTH = 3
-
-
 def gst_similarity(nodes_a, nodes_b, min_match_length=3):
     str_a = "\n".join(ast.unparse(n) for n in nodes_a)
     str_b = "\n".join(ast.unparse(n) for n in nodes_b)
@@ -53,11 +50,11 @@ def embed_new_method_in_class(method, module_node, used_names):
 
             if init_method is not None:
                 existing_arguments = set(arg.arg for arg in init_method.args.args)
-                print(existing_arguments)
+                # print(existing_arguments)
 
                 for name in used_names:
                     if name not in existing_arguments and name != "miscclass":
-                        print("Name " + name)
+                        # print("Name " + name)
                         init_method.args.args.append(ast.arg(arg=name))
                         init_method.body.append(ast.Assign(targets=[
                             ast.Attribute(
@@ -129,11 +126,12 @@ def find_used_names(nodes, instance_maps):
 
 
 class SequenceMatcher(ast.NodeTransformer):
-    def __init__(self, miscMethods, instance_map, all_methods, match_threshold = 0.45):
+    def __init__(self, miscMethods, instance_map, all_methods, match_threshold = 0.45, min_method_len = 3):
         self.sequences = {}
         self.NEW_METHOD_COUNTER = 0
         self.all_methods = all_methods
         self.match_threshold = match_threshold
+        self.min_method_len = min_method_len
         misc = {}
         for method in miscMethods:
             sequence = InstructionSequence(method.body_nodes)
@@ -155,7 +153,7 @@ class SequenceMatcher(ast.NodeTransformer):
                 break
 
     def visit_FunctionDef(self, node):
-        for i in range(MIN_LENGTH, len(node.body) + 1):
+        for i in range(self.min_method_len, len(node.body) + 1):
             for j in range(0, len(node.body) - i + 1):
                 window = node.body[j : j + i]
                 if any(isinstance(n, ast.Assign) for n in window):
@@ -217,7 +215,7 @@ class SequenceMatcher(ast.NodeTransformer):
 
         used_names = find_used_names(candidate_sequence.nodes, self.instance_map)
 
-        print(used_names)
+        # print(used_names)
 
         bindings = {}
         for node in candidate_sequence.nodes:
@@ -261,7 +259,7 @@ class SequenceMatcher(ast.NodeTransformer):
                     if arg not in bindings:
                         bindings[arg] = f"action_keyword_{action_keyword_counter}"
                         action_keyword_counter += 1
-        print(bindings)
+        # print(bindings)
         transformed_nodes = []
         for node in candidate_sequence.nodes:
             copied_node = copy.deepcopy(node)

@@ -1,6 +1,6 @@
 import re
 from playwright.sync_api import Playwright, sync_playwright, expect
-from page_objects.MiscClass import MiscClass
+from test5.page_objects.MiscClass import MiscClass
 
 def run(playwright: Playwright) -> None:
     browser = playwright.chromium.launch(headless=False)

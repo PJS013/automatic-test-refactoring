@@ -9,5 +9,6 @@
   ],
   "output_dir": "page_objects",
   "generated_class": "MiscClass",
-  "similarity_threshold": 0.45
+  "similarity_threshold": 0.45,
+  "min_method_len": 2
 }

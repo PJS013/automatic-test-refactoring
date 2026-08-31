@@ -18,3 +18,7 @@ class MiscClass:
         self.page.get_by_role(locator_arg_1, name=locator_keyword_0).click()
         self.page.locator(locator_arg_2).click()
         self.loginpage.login(locator=action_keyword_0, login=action_keyword_1, password=action_keyword_2)
+
+    def generated_2(self, locator_arg_0, action_arg_0, locator_arg_1):
+        expect(self.page.locator(locator_arg_0)).to_have_value(action_arg_0)
+        self.page.get_by_text(locator_arg_1).click()

@@ -29,7 +29,7 @@ class TransformToPageObject(ast.NodeTransformer):
                             continue
 
                         matches.append((method, bindings, len(method.body_nodes)))
-                    print(f"[DEBUG] At position {i}, found {len(matches)} matches: {[m[0].name for m in matches]}")
+                    # print(f"[DEBUG] At position {i}, found {len(matches)} matches: {[m[0].name for m in matches]}")
 
                     if matches:
                         best_method, best_bindings, best_length = max(matches, key=lambda x: x[2])
