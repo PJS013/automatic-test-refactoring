@@ -1,8 +1,7 @@
-import pytest
-from playwright.sync_api import Playwright, sync_playwright, expect
-from test1.page_objects.MiscClass import MiscClass
-from test1.page_objects.LoginPage import LoginPage
-from test1.page_objects.ExpectMethods import ExpectMethods
+from playwright.sync_api import Playwright, sync_playwright
+from test_cases.test1.tests_refactored.test1 import MiscClass
+from test_cases.test1.tests_refactored.test1 import LoginPage
+from test_cases.test1.tests_refactored.test1 import ExpectMethods
 
 def run(playwright: Playwright) -> None:
     browser = playwright.chromium.launch(headless=False)
